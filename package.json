@@ -1,0 +1,56 @@
+{
+"name": "SafeSiteNode",
+    "version": "1.0.0",
+    "private": true,
+    "engines": {
+        "node": "6.9.1"
+    },
+    "scripts": {
+        "compile": "coffee -c app.coffee util.coffee middleware models routes",
+        "count-lines": "cloc --exclude-dir node_modules,migrations,v2 --exclude-ext=js .",
+        "deploy-prod": "heroku pipelines:promote && heroku run -a csl-safesitenode -- node_modules/.bin/db-migrate -e production -v up && git tag `date +\"v%Y-%m-%d\"` && git push origin master --tags && curl https://csl-safesitenode.herokuapp.com",
+        "deploy-staging": "npm test && git push staging master && curl https://csl-safesitenode-staging.herokuapp.com",
+        "lint": "coffeelint *.coffee middleware/*.coffee models/*.coffee routes/*.coffee routes/**/*.coffee tools",
+        "local": "heroku local nodemon",
+        "postinstall": "db-migrate -e ${NODE_ENV:-dev} --config ${MIGRATION_CONFIG_FILE:-database-dev.json} -v up && npm run compile",
+        "start": "node app.js",
+        "test": "coffeelint test/*.coffee && mocha --compilers coffee:coffee-script/register --ui exports --reporter spec test/**/test*",
+        "update": "git pull origin master && npm install",
+        "watch": "chokidar *.coffee middleware/*.coffee models/*.coffee routes/*.coffee routes/**/*.coffee routes/**/**/*.coffee --verbose -c \"npm run lint && npm run compile\""
+    },
+    "dependencies": {
+        "aws-sdk": "2.2.17",
+        "bcrypt": "1.0.0",
+        "bluebird": "2.9.24",
+        "body-parser": "1.12.3",
+        "coffee-script": "1.11.0",
+        "compression": "1.4.3",
+        "connect-timeout": "1.6.1",
+        "cookie-parser": "1.3.4",
+        "db-migrate": "git://github.com/SupremumLimit/node-db-migrate.git#482b767472a64",
+        "debug": "2.1.3",
+        "errorhandler": "1.3.5",
+        "express": "4.12.3",
+        "express-csv": "0.6.0",
+        "hashids": "1.0.1",
+        "moment-timezone": "0.4.1",
+        "morgan": "1.5.2",
+        "nan": "2.1.0",
+        "newrelic": "*",
+        "pg": "4.3.0",
+        "pg-native": "1.8.0",
+        "prettyjson": "1.1.0",
+        "ramda": "0.22.1",
+        "string": "3.1.1",
+        "uid-safe": "1.1.0"
+    },
+    "devDependencies": {
+        "chai": "^3.5.0",
+        "chokidar-cli": "^1.2.0",
+        "coffeelint": "^1.15.0",
+        "jsverify": "^0.7.4",
+        "mocha": "^2.4.5",
+        "nodemon": "^1.8.1",
+        "shelljs": "^0.7.4"
+    }
+}

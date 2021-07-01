@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+.env
+*.log
+.idea/
+app.js
+util.js
+database-dev.json
+middleware/*.js
+models/*.js
+routes/**/*.js

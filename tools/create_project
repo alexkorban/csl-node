@@ -1,0 +1,84 @@
+#!node_modules/.bin/coffee
+path = require "path"
+exec = require("child_process").execSync
+Hashids = require "hashids"
+uid = require "uid-safe"
+fs = require "fs"
+
+[..., envName, projectName, customerId, timezone, boundaryType, boundaryFile] = process.argv
+
+envProvided = envName? && (envName == "staging" || envName == "prod")
+boundaryTypeProvided = boundaryType? && (boundaryType == "line" || boundaryType == "polygon")
+if !envProvided || !projectName? || !customerId? || !timezone? || !boundaryFile? || !boundaryTypeProvided
+    console.log "Usage: #{path.basename process.argv[1]} <env: staging|prod> <projectName> <customerId> " +
+        "<time zone> <boundaryType: line|polygon> <JSON boundary path>"
+    return
+
+projectCid = new Hashids(uid.sync(10)).encode(Math.floor new Date().getTime() / 10000)
+geomTransform = if boundaryType == "line" then "ST_MakePolygon" else ""
+
+bound = fs.readFileSync(boundaryFile).toString()
+
+boundaryProps =
+    marker: {"icon": "exclamation", "prefix": "fa", "markerColor": "blue", "iconColor": "white"}
+    polygon: {"color": "#79acdc", "weight": 2, "fill": true, "fillColor": "#79acdc", "lineJoin": "round"
+        , "fillOpacity": 0.05, "opacity": 0.75}
+    is_boundary: true
+
+udgProps =
+    marker: {"icon": "exclamation", "prefix": "fa", "markerColor": "blue", "iconColor": "white"}
+    polygon:{"weight": 2, "fill": true, "fillColor": "#79acdc", "lineJoin": "round", "opacity": 0.75
+        , "fillOpacity": 0, "color": "#ffffff"}
+
+console.log "Creating project"
+
+# The insane escaping is due to the fact that I need to have double escaping at the point of passing the query as a
+# parameter to the `heroku` command: `heroku pg:psql -a csl-safesitenode-staging -c "select '\\\" A \\\"'"`
+# In order to produce that, I need another layer of escaping in CoffeeScript
+sql = """
+    begin;
+    with input as (
+        select ST_SetSRID(#{geomTransform}(ST_Force2D(
+            ST_GeomFromGeoJSON('#{bound.replace /"/g, "\\\""}'::json #>> '{features, 0, geometry}'))), 4326
+        ) as geometry
+    )
+    , project as (
+        insert into projects (name, cid, customer_id, timezone, download_boundary)
+            select '#{projectName}', '#{projectCid}', #{customerId}, '#{timezone}',
+                -- set download boundary to be ~1km away from the project boundary
+                st_simplify(st_buffer(input.geometry::geography, 1000)::geometry, 0.005)
+            from input
+        returning id, download_boundary
+    )
+    , boundary as (
+        insert into overlays (name, project_id, display_order, properties)
+            select 'Boundary', project.id, 100,
+                '#{JSON.stringify(boundaryProps).replace /"/g, "\\\""}'::json
+            from project
+        returning id
+    )
+    , geom as (
+        insert into geometries (overlay_id, properties, geometry)
+            select boundary.id, '{\\"name\\": \\"Project boundary\\"}'::json, input.geometry
+            from boundary cross join input
+        returning id
+    )
+    , user_defined_geoms as (
+        insert into overlays (name, project_id, display_order, properties)
+            select 'User defined areas', project.id, 40,
+                '#{JSON.stringify(udgProps).replace /"/g, "\\\""}'::json
+            from project
+        returning id
+    )
+    select id from project;
+
+    commit;
+"""
+
+app = if envName == "prod" then "csl-safesitenode" else "csl-safesitenode-staging"
+cmd = "heroku pg:psql -a #{app} -c \"#{sql}\""
+console.log "Executing command: #{cmd}"
+
+console.log exec(cmd).toString()
+
+console.log "Done."

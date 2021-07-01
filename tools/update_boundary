@@ -1,0 +1,51 @@
+#!node_modules/.bin/coffee
+path = require "path"
+exec = require("child_process").execSync
+Hashids = require "hashids"
+uid = require "uid-safe"
+fs = require "fs"
+
+[..., envName, projectName, boundaryType, boundaryFile] = process.argv
+
+envProvided = envName? && (envName == "staging" || envName == "prod")
+boundaryTypeProvided = boundaryType? && (boundaryType == "line" || boundaryType == "polygon")
+if !envProvided || !projectName? || !boundaryFile? || !boundaryTypeProvided
+    console.log "Usage: #{path.basename process.argv[1]} <env: staging|prod> <projectName> " +
+            "<boundaryType: line|polygon> <JSON boundary path>"
+    return
+
+boundary = fs.readFileSync(boundaryFile).toString()
+geomTransform = if boundaryType == "line" then "ST_MakePolygon" else ""
+
+sql = """
+    begin;
+    with overlay as (
+        update overlays set updated_at = clock_timestamp() + interval '10 seconds'
+        where project_id = (select id from projects where name = '#{projectName}')
+            and name = 'Boundary'
+        returning id
+    )
+    , geometry as (
+        update geometries set geometry =
+            ST_SetSRID(#{geomTransform}(ST_Force2D(
+                ST_GeomFromGeoJSON('#{boundary.replace /"/g, "\\\""}'::json #>> '{features, 0, geometry}'))), 4326)
+        , updated_at = clock_timestamp() + interval '10 seconds'
+        where overlay_id = (select id from overlay)
+        returning id
+    )
+    update projects set download_boundary = (
+        select st_simplify(st_buffer(geometry::geography, 1000)::geometry, 0.005)
+        from geometries where id = (select id from geometry)
+    ), updated_at = clock_timestamp() + interval '10 seconds'
+    where name = '#{projectName}';
+    commit;
+"""
+
+
+app = if envName == "prod" then "csl-safesitenode" else "csl-safesitenode-staging"
+cmd = "heroku pg:psql -a #{app} -c \"#{sql}\""
+console.log "Executing command: #{cmd}"
+
+console.log exec(cmd).toString()
+
+console.log "Done."

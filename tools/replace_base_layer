@@ -1,0 +1,44 @@
+#!node_modules/.bin/coffee
+path = require "path"
+exec = require("child_process").execSync
+
+[..., env, projectId, mapId, type, maxZoom, maxNativeZoom] = process.argv
+
+if (!env? || (env != "staging" && env != "prod")) || !projectId? || !mapId? || !type? || !maxZoom? || !maxNativeZoom?
+    console.log "Usage: #{path.basename process.argv[1]} " +
+        "<env: staging|prod> projectId mapId <type: linework|drone|satellite> maxZoom maxNativeZoom"
+    console.log "  Only 1 active layer of the specified type can exist for the specified project, or the script does nothing."
+    return
+
+displayOrder = switch type
+    when "satellite" then 100
+    when "drone" then 80
+    else 60
+
+
+console.log "Updating #{type} layer"
+
+sql = """
+    begin;
+    update base_layers set deleted_at = clock_timestamp() + '10 seconds'::interval
+        where project_id = #{projectId} and type = '#{type}' and deleted_at = '-Infinity'
+            and (select count(map_id) from base_layers
+                 where project_id = #{projectId} and type = '#{type}' and deleted_at = '-Infinity') = 1;
+    insert into base_layers(project_id, map_id, max_zoom, max_native_zoom, updated_at, type, display_order)
+        select #{projectId}, '#{mapId}', #{maxZoom}, #{maxNativeZoom},
+            clock_timestamp() + '10 seconds'::interval, '#{type}',
+            coalesce(
+                (select display_order from base_layers where project_id = #{projectId} and type = '#{type}'
+                order by deleted_at desc limit 1)
+            , #{displayOrder})
+        where not exists (select map_id from base_layers
+                 where project_id = #{projectId} and type = '#{type}' and deleted_at = '-Infinity');
+    commit;
+"""
+
+cmd = "heroku pg:psql -a #{if env == "prod" then "csl-safesitenode" else "csl-safesitenode-staging"} -c \"#{sql}\""
+
+console.log "Executing command:\n#{cmd}"
+console.log exec(cmd).toString()
+
+console.log "Done."

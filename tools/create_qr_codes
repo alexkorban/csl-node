@@ -1,0 +1,21 @@
+#!node_modules/.bin/coffee
+
+R = require "ramda"
+
+printCredUrl = (cred) ->
+    R.mapObjIndexed (value, key) ->
+        qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?data=%7B%22value%22%3A+%22#{value}%22%7D&size=400x400&margin=10"
+        console.log "#{key}:\n#{qrImageUrl}\n"
+    , cred
+
+input = ""
+process.stdin.on "data", (chunk) ->
+    input += chunk.toString()
+
+process.stdin.on "end", ->
+    creds = JSON.parse input
+    console.log "Creds:\n", creds
+    console.log "------------------------\n\nQR code URLs:\n"
+    R.forEach printCredUrl, creds
+
+

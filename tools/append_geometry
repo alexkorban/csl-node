@@ -1,0 +1,37 @@
+#!node_modules/.bin/coffee
+
+path = require "path"
+exec = require("child_process").execSync
+
+[..., envName, geomType, geomId, appendageId] = process.argv
+
+envProvided = envName? && (envName == "staging" || envName == "prod")
+geomTypeProvided = geomType? && (geomType == "boundary" || geomType == "regular")
+if !envProvided || !geomTypeProvided || !geomId? || !appendageId?
+    console.log "Usage: #{path.basename process.argv[1]} <env: staging|prod> <geomType: boundary|regular> <geomId> <appendageId> "
+    return
+
+sql = """
+    begin;
+    -- NOTE: The step to merge geometries is not implemented.
+
+    -- If the geometry is a boundary, update the corresponding project boundary
+    update projects set download_boundary = (
+        select st_simplify(st_buffer(geometry::geography, 1000)::geometry, 0.005)
+        from geometries
+        where id = #{geomId})
+        , updated_at = clock_timestamp() + interval '10 seconds'
+    where id in (select projects.id
+                 from geometries
+                 join overlays on overlay_id = overlays.id
+                 join projects on project_id = projects.id
+                 where geometries.id = #{geomId} and (overlays.properties->>'is_boundary')::bool);
+    commit;
+"""
+
+cmd = "heroku pg:psql -a #{if env == "prod" then "csl-safesitenode" else "csl-safesitenode-staging"} -c \"#{sql}\""
+
+console.log "Executing command:\n#{cmd}"
+console.log exec(cmd).toString()
+
+console.log "Done."

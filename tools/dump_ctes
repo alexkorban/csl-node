@@ -1,0 +1,36 @@
+#!node_modules/.bin/coffee
+fs = require "fs"
+R = require "ramda"
+exec = require("child_process").execSync
+
+[..., envName, queryFile] = process.argv
+
+envProvided = envName? && (envName == "staging" || envName == "prod")
+if !envProvided || !queryFile?
+    console.log "Usage: #{path.basename process.argv[1]} <env: staging|prod>"
+    console.log "Expects only the CTE portion of the query - will add dump SQL to it."
+    return
+
+sql = fs.readFileSync(queryFile).toString()
+
+cteNames = R.reject R.isNil, R.map((line) ->
+    m = line.match /^(?:with|,)\s+(\w+)\s+as\s+\(/
+    m?[1]
+, sql.split("\n"))
+
+sql += "select null::json\n"
+sql += R.join "\n", R.map((cte) ->
+        """
+        union all
+        select '\\\\\\"-- #{R.toUpper cte} --\\\\\\"'::json
+        union all
+        select row_to_json(#{cte}) from #{cte}
+        """
+    , cteNames)
+
+
+app = if envName == "prod" then "csl-safesitenode" else "csl-safesitenode-staging"
+cmd = "heroku pg:psql -a #{app} -c \"#{sql}\""
+console.log "Executing command: #{cmd}"
+
+console.log exec(cmd).toString()

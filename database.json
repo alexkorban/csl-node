@@ -1,0 +1,7 @@
+{
+    "production": {
+        "driver": "pg",
+        "native": true,
+        "databaseUrl": {"ENV": "DATABASE_URL"}
+    }
+}

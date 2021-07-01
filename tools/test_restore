@@ -1,0 +1,65 @@
+#!node_modules/.bin/coffee
+require 'shelljs/global'
+pg = require('pg').native
+R = require 'ramda'
+
+if process.argv.length < 3
+    echo "Usage: tools/test_restore <owner:password@host:port>"
+    exit 1
+
+[_, _, pgserver] = process.argv
+DATABASE_RESTORE_URL = "postgres://#{pgserver}/safesite_temp"
+
+prodDbOut = exec 'heroku pg:psql -c "select count(*) from (select tablename from pg_tables where schemaname = \'public\') as tables" -a csl-safesitenode'
+tablesCount = parseInt R.match(/\d+/, prodDbOut.stdout)[0]
+
+command = "curl -o latest.dump `heroku pg:backups public-url -a csl-safesitenode`"
+echo "==> #{command}"
+exec command
+
+command = "createdb safesite_temp"
+echo "==> #{command}"
+exec command
+
+command = "pg_restore --verbose --no-acl --no-owner -d safesite_temp latest.dump"
+echo "==> #{command}"
+exec command
+
+echo "Checking db tables"
+pg.connect DATABASE_RESTORE_URL, (err, client, done) ->
+    if err
+        echo "Can't connect to database"
+        exec "dropdb safesite-temp"
+        exit 1
+
+    query = (sql) ->
+        new Promise (resolve, reject) =>
+            client.query sql, (err, result) ->
+                if err
+                    echo "Failed query"
+                resolve result
+
+    query("select tablename from pg_tables where schemaname = 'public'")
+    .then (result) ->
+        Promise.all R.map (row) ->
+            query("select count(*) from #{row.tablename}").then (result) ->
+                echo "#{row.tablename} has #{result.rows[0].count} rows"
+                result.rows[0]
+        , result.rows
+        .then (counts) ->
+            client.end()
+
+            if R.length(counts) == tablesCount && R.all ((c) -> c.count > 0), counts
+                echo "Database is restored successfully"
+
+                command = "dropdb safesite_temp"
+                echo "==> #{command}"
+                exec command
+
+                command = "rm latest.dump"
+                echo "==> #{command}"
+                exec command
+            else
+                echo "Database is not restored"
+
+

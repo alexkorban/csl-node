@@ -1,0 +1,30 @@
+{
+    "driverDay": {
+        "day": "01/01/16 00:00:00",
+        "dayStartUtc": 1451559600,
+        "dayEndUtc": 1451645999,
+        "userId": 894,
+        "username": "John Smith",
+        "role": "Concrete truck",
+        "company": "MyCompany",
+        "truckNo": "MT007",
+        "start": "01/01/16 09:22:39",
+        "end": "01/01/16 16:52:48",
+        "totalActiveTime": "07:30:08.553225",
+        "signonAtUtc": 1451593360,
+        "timezone": "Pacific/Auckland"
+    }
+    , "data": {
+        "proximityEvents": [{"type":"load_entry","coord":1451593770104,"name":"Load area","areaId":7,"position":{"lon":174,"lat":-41},"role":"Load area"},{"type":"load_exit","coord":1451593800104,"name":"Load area","areaId":7,"position":{"lon":174,"lat":-41},"role":"Load area"},{"type":"load_entry","coord":1451593920104,"name":"Batch plant","areaId":8,"position":{"lon":174,"lat":-41},"role":"Batch plant"},{"type":"load_exit","coord":1451594280104,"name":"Batch plant","areaId":8,"position":{"lon":174,"lat":-41},"role":"Batch plant"},{"type":"dump_entry","coord":1451596320104,"name":"Paver","areaId":4,"position":{"lon":174,"lat":-41},"role":"Paver"},{"type":"dump_exit","coord":1451596440104,"name":"Paver","areaId":4,"position":{"lon":174,"lat":-41},"role":"Paver"},{"type":"load_entry","coord":1451599320104,"name":"Batch plant","areaId":8,"position":{"lon":174,"lat":-41},"role":"Batch plant"},{"type":"load_exit","coord":1451599370104,"name":"Batch plant","areaId":8,"position":{"lon":174,"lat":-41},"role":"Batch plant"},{"type":"load_entry","coord":1451599440104,"name":"Load area","areaId":7,"position":{"lon":174,"lat":-41},"role":"Load area"},{"type":"load_exit","coord":1451599740104,"name":"Load area","areaId":7,"position":{"lon":174,"lat":-41},"role":"Load area"},{"type":"dump_entry","coord":1451602980104,"name":"Dump gates1","areaId":10,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"dump_exit","coord":1451603030104,"name":"Dump gates1","areaId":10,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"dump_entry","coord":1451603040104,"name":"Dump area","areaId":9,"position":{"lon":174,"lat":-41},"role":"Dump area"},{"type":"dump_exit","coord":1451603090104,"name":"Dump area","areaId":9,"position":{"lon":174,"lat":-41},"role":"Dump area"},{"type":"dump_entry","coord":1451603100104,"name":"Dump area","areaId":9,"position":{"lon":174,"lat":-41},"role":"Dump area"},{"type":"dump_exit","coord":1451603700104,"name":"Dump area","areaId":9,"position":{"lon":174,"lat":-41},"role":"Dump area"},{"type":"dump_entry","coord":1451603760104,"name":"Dump gates1","areaId":10,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"dump_exit","coord":1451603810104,"name":"Dump gates1","areaId":10,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"load_entry","coord":1451606460104,"name":"Load area","areaId":7,"position":{"lon":174,"lat":-41},"role":"Load area"},{"type":"load_exit","coord":1451606760104,"name":"Load area","areaId":7,"position":{"lon":174,"lat":-41},"role":"Load area"},{"type":"dump_entry","coord":1451610060104,"name":"Dump gates2","areaId":3,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"dump_exit","coord":1451610110104,"name":"Dump gates2","areaId":3,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"dump_entry","coord":1451610600104,"name":"Dump gates2","areaId":3,"position":{"lon":174,"lat":-41},"role":"Dump area gate"},{"type":"dump_exit","coord":1451610650104,"name":"Dump gates2","areaId":3,"position":{"lon":174,"lat":-41},"role":"Dump area gate"}]
+      , "movementEvents": [{"type":"stop", "coord":1451594387663},{"type":"move","coord":1451594567663},{"type":"stop","coord":1451597987663},{"type":"move","coord":1451598167663}]
+      , "driverDistances": [{"id":2205305,"coord":1451594277,"distance":436},{"id":2205297,"coord":1451594457,"distance":125},{"id":2205298,"coord":1451594997,"distance":94},{"id":2205299,"coord":1451595057,"distance":180},{"id":2205300,"coord":1451595597,"distance":168},{"id":2205304,"coord":1451596857,"distance":0},{"id":2205303,"coord":1451597157,"distance":180},{"id":2205302,"coord":1451597457,"distance":94},{"id":2205301,"coord":1451597757,"distance":436},{"id":2205286,"coord":1451620368,"distance":125}]
+    }
+    , "params": {
+        "userId": 894,
+        "roleId": 0,
+        "loadAreaId": 0,
+        "dumpAreaId": 0,
+        "dateRange": [ "2016-01-01", "2016-01-01" ],
+        "debug": "true"
+    }
+}

@@ -1,0 +1,75 @@
+#!node_modules/.bin/coffee
+path = require "path"
+exec = require("child_process").execSync
+fs = require "fs"
+R = require "ramda"
+Hashids = require "hashids"
+uid = require "uid-safe"
+
+[..., envName, projectName, dataFile] = process.argv
+
+envProvided = envName? && (envName == "staging" || envName == "prod")
+if !envProvided || !projectName? || !dataFile?
+    console.log "Usage: #{path.basename process.argv[1]} <env: staging|prod> <projectName> " +
+            "<CSV data path>"
+    return
+
+
+keys = ["number", "rego", "major", "minor", "make", "model", "vehicleRole"]
+data = R.pipe(R.split("\r\n"), R.map(R.pipe(R.split(","), R.zip(keys), R.fromPairs))) fs.readFileSync(dataFile).toString()
+beaconUuid = "f7826da6-4fa2-4e98-8024-bc5b71e0893e"
+getCid = -> new Hashids(uid.sync(10)).encode(Math.floor new Date().getTime() / 10000)
+
+itemSql = (item) ->
+    if R.isEmpty item.major
+        """
+        insert into vehicles (number, rego, rego_exp_date, mileage, make, model, customer_id, role_id, cid) values
+        ('#{item.number}', '#{item.rego}', '2017-12-31'::date, 0, '#{item.make}', '#{item.model}'
+        ,  (select customer_id from projects where name = '#{projectName}')
+        , (select id from vehicle_roles where name = '#{item.vehicleRole}')
+        , '#{getCid()}');
+        """
+    else
+        """
+        with project as (
+            select id, customer_id from projects
+            where name = '#{projectName}'
+        )
+        , data as (
+            select '#{beaconUuid}'::uuid as beacon_uuid, #{item.major} as major, #{item.minor} as minor
+                , '#{item.number}'::varchar as number, (select customer_id from project), (select id from project) as project_id
+                , (select id from beacon_roles where name = 'Light vehicle') as role_id
+                , '#{getCid()}'::varchar as cid
+        )
+        , updated_beacon as (
+            update beacons set name = '#{item.number}', project_id = (select id from project)
+                , role_id = (select id from beacon_roles where name = 'Light vehicle'), updated_at = now()
+                , customer_id = (select customer_id from project)
+            where beacon_uuid = '#{beaconUuid}'::uuid and major = #{item.major} and minor = #{item.minor}
+            returning id, beacon_uuid
+        )
+        , created_beacon as(
+            insert into beacons (beacon_uuid, major, minor, name, customer_id, project_id, role_id, cid)
+            select data.* from data
+            left join updated_beacon using(beacon_uuid)
+            where updated_beacon.id is null
+            returning id
+        )
+        insert into vehicles (number, rego, rego_exp_date, mileage, make, model, customer_id, role_id, beacon_id, cid) values
+           ('#{item.number}', '#{item.rego}', '2017-12-31'::date, 0, '#{item.make}', '#{item.model}'
+           ,  (select customer_id from project), (select id from vehicle_roles where name = '#{item.vehicleRole}')
+           , coalesce ((select id from updated_beacon), (select id from created_beacon)), '#{getCid()}');
+        """
+
+
+sql = """begin; #{R.map(itemSql, data).join("\n")} commit;"""
+
+app = if envName == "prod" then "csl-safesitenode" else "csl-safesitenode-staging"
+
+cmd = "heroku pg:psql -a #{app} -c \"#{sql}\""
+
+console.log "Executing command: #{cmd}"
+
+console.log exec(cmd).toString()
+
+console.log "Done."
